@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 
 import PDFComponent from '../components/PDFComponentModified';
+import FabricCanvas from '@/components/FabricCanvas';
+import PDFWithFabric from '@/components/PDFWithFabric';
 
 
 const multiselectValues = [
@@ -56,10 +58,27 @@ const FileDemo = () => {
                 </div>
 
             </div>}
-            {/* <PDFComponent/> */}
-            {pdf && <div>
-                <PDFComponent />
-            </div>}
+              <div style={{ position: "relative", width: "100%", height: "100vh" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none", // Allow clicks to pass through to the PDF
+        }}
+      >
+        <FabricCanvas />
+      </div>
+      {pdf && (
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <PDFWithFabric />
+        </div>
+      )}
+
+     
+    </div>
         </div>
     );
 };
