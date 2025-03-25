@@ -5,7 +5,8 @@ import * as pdfjs from "pdfjs-dist";
 import "pdfjs-dist/build/pdf.worker.entry";
 import * as fabric from "fabric"; // v6
 import { Button } from "@mui/material";
-
+import axios from "axios";
+import * as  PDFLib from 'pdf-lib'
 // Set workerSrc to avoid CORS issues
 pdfjs.GlobalWorkerOptions.workerSrc = `cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
 
@@ -15,19 +16,78 @@ export default function PDFWithFabric() {
   const fabricInstanceRef = useRef(null);
   const [pdfDocument, setPdfDocument] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pdfUrl, setPdfUrl] = useState("http://localhost:4333/uploadfile/GM(W)-SCR-TESTING-NED-ADB-57-25.pdf ");
+  const [pdfUrl, setPdfUrl] = useState("http://localhost:4333/uploadfile/BR_487_RVNL_2010.pdf ");
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 1000 }); // Default size
-
+const [pdfBytes,setPDFBytes] = useState() 
+const [tableGroup, setTableGroup] = useState()
+const [tableInfo, setTableInfo] = useState()
   // Load PDF document
+//   const loadPdfFromUrl = async () => {
+//     try {
+//       const loadingTask = pdfjs.getDocument(pdfUrl);
+//       const pdf = await loadingTask.promise;
+//       setPdfDocument(pdf);
+//     } catch (error) {
+//       console.error("Error loading PDF:", error);
+//     }
+//   };
+function uint8ArrayToBase64(uint8Array) {
+    let binary = "";
+    uint8Array.forEach(byte => {
+        binary += String.fromCharCode(byte);
+    });
+    return btoa(binary); // Convert to Base64
+}
+function base64ToUint8Array(base64) {
+    const binaryString = atob(base64); // Decode Base64 to binary string
+    const len = binaryString.length;
+    const uint8Array = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+    }
+
+    return uint8Array;
+}
   const loadPdfFromUrl = async () => {
     try {
-      const loadingTask = pdfjs.getDocument(pdfUrl);
-      const pdf = await loadingTask.promise;
-      setPdfDocument(pdf);
-    } catch (error) {
-      console.error("Error loading PDF:", error);
-    }
-  };
+        const response = await axios.get(pdfUrl, {
+          responseType: "arraybuffer",
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          }
+        });
+        console.log('content type of response',response.headers['content-type']); 
+        console.log("PDF Response Headers:", response.headers);
+        console.log("PDF Size:", response.data.byteLength);
+        if (!response.headers["content-type"].includes("application/pdf")) {
+            throw new Error("Invalid PDF file received. Check response type.");
+        }
+        console.log('PDF bytes', response.data)
+        const typedArray = new Uint8Array(response.data);
+
+        const headerText = new TextDecoder().decode(typedArray.slice(0, 10));
+        console.log("Decoded Header:", headerText);
+        if (!headerText.includes("%PDF")) {
+            throw new Error("Invalid PDF format, missing PDF header.");
+        }
+        const base64String = uint8ArrayToBase64(typedArray);
+        // console.log('base 64 string ', base64String)
+        setPDFBytes(base64String); 
+
+
+        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        console.log("PDF Loaded Successfully:", pdf);
+        setPdfDocument(pdf);
+        const page = await pdf.getPage(1);
+        const rotation = page.rotate;
+        console.log(`PDF Rotation: ${rotation}°`);
+      } catch (error) {
+        console.error("Error loading PDF:", error.message);
+      } finally {
+      
+      }
+};
 
   // Render PDF page
   const renderPdf = () => {
@@ -126,6 +186,9 @@ export default function PDFWithFabric() {
   const transformData = (data) => {
     return data.flatMap((character) => [character, '']);
 };
+function findLongestInArray(arr) {
+    return arr.reduce((longest, current) => current.length > longest.length ? current : longest, "");
+}
   useEffect(() => {
     if (fabricInstanceRef.current && fabricCanvasRef.current) {
       fabricInstanceRef.current.setWidth(canvasSize.width);
@@ -175,106 +238,189 @@ export default function PDFWithFabric() {
     renderPdf();
   }, [pdfDocument]);
 
-const addTable = ()=>{
+
+const addTable = () => {
     if (!fabricInstanceRef.current) return;
+
     const fabricCanvas = fabricInstanceRef.current;
-    const tempTable = ['Signed by RAVI TEJA',' ', 'Signed by AUTOBOT', ' ']
-    console.log('table details flatarray', 'multipletables', tempTable);
-    let maxString = findLongestInArray(tempTable);
-    const currentDate = new Date();
-    let xx = 0;
-    tableInfo = {
-        x: 500,
-        y: 200,
-        rows: tableLength,
+
+    // Sample table data
+    const tableData = [
+        "Signed by OPTIMUS", " ",
+        "Signed by AUTOBOT", " "
+    ];
+
+    // Table properties
+    const tableInfo = {
+        x: 100,  // X position
+        y: 100,  // Y position
+        rows: 2,
         columns: 2,
-        cellWidth: (100*(maxString.length/24))+20,
+        cellWidth: 150,
         cellHeight: 50
     };
-    const temp = new fabric.Group([], {
-        left: tableInfo.x,
-        top: tableInfo.y,
-        id: currentDate.toISOString() + 'myTable'
-    });
-    tableGroup[currentPage] = temp;
 
-    const signRect = new fabric.Rect({
-        left: tableInfo.cellWidth - 100*(maxString.length/24) -20 ,
-        top: (tableInfo.cellHeight - 100)+ tableInfo.y,
-        fill: 'white',
-        stroke: 'black',
-        width: (tableInfo.cellWidth * 6),
-        height: tableInfo.cellHeight,
-        lockRotation: true,
-        rotatable: false
-    });
+    let index = 0;
+    const objects = [];
 
-    const signCellText = new fabric.Text('Signature Heading', {
-        left: tableInfo.cellWidth + 40,
-        top: (tableInfo.cellHeight + 10 - 100)+ tableInfo.y,
-        fontSize: 24,
-        fill: 'black',
-        originX: 'left',
-        originY: 'top',
-        lockRotation: true,
-        rotatable: false
-    });
-    
-    tableGroup[currentPage].addWithUpdate(signRect);
-    tableGroup[currentPage].addWithUpdate(signCellText);
-
+    // Generate table cells and text
     for (let i = 0; i < tableInfo.rows; i++) {
         for (let j = 0; j < tableInfo.columns; j++) {
-            console.log('x,y', i, j);
-
+            // Create table cell (rectangle)
             const rect = new fabric.Rect({
-                left: j === 0 ? j * tableInfo.cellWidth : j * tableInfo.cellWidth * 2,
-                top: (i * tableInfo.cellHeight) + tableInfo.y,
-                fill: 'white',
-                stroke: 'black',
-                width: j === 0 ? tableInfo.cellWidth * 2 : tableInfo.cellWidth * 4,
+                left: j * tableInfo.cellWidth,
+                top: i * tableInfo.cellHeight,
+                width: tableInfo.cellWidth,
                 height: tableInfo.cellHeight,
-                lockRotation: true,
-                rotatable: false
+                fill: "white",
+                stroke: "black",
+                strokeWidth: 2,
+                selectable: false
             });
 
-            const cellText = new fabric.Text(multipleTables[currentTable][xx], {
-                left: j === 0 ? j * tableInfo.cellWidth + 10 : j * 2 * tableInfo.cellWidth + 10,
-                top: (i * tableInfo.cellHeight + 10) + tableInfo.y,
+            // Create text inside the cell
+            const cellText = new fabric.Text(tableData[index], {
+                left: j * tableInfo.cellWidth + 10, // Padding inside cell
+                top: i * tableInfo.cellHeight + 15,
                 fontSize: 14,
-                fill: 'black',
-                originX: 'left',
-                originY: 'top',
-                lockRotation: true,
-                rotatable: false
+                fill: "black",
+                selectable: false
             });
-            tableGroup[currentPage].addWithUpdate(rect);
-            tableGroup[currentPage].addWithUpdate(cellText);
-            xx++;
+
+            // Store objects for grouping
+            objects.push(rect, cellText);
+            index++;
         }
     }
 
-    fabricCanvas.add(tableGroup[currentPage]);
-    console.log('table being added', tableGroup);
-    saveAnnotation();
+    // Create a group with all table elements
+    const tableGroup = new fabric.Group(objects, {
+        left: tableInfo.x,
+        top: tableInfo.y,
+        hasControls: true, 
+    });
+    setTableGroup(tableGroup)
+    setTableInfo(tableInfo)
+    // Add the table group to the canvas
+    fabricCanvas.add(tableGroup);
+    fabricCanvas.renderAll();
+};
+ 
+const exportToPDF = async()=>{
+
+     // Should start with "%PDF"
+    const savedPDFbytes = base64ToUint8Array(pdfBytes)
+    // console.log('pdf bytes',savedPDFbytes);
+    const pdfDoc = await PDFLib.PDFDocument.load(savedPDFbytes);
+    const numPages = pdfDoc.getPageCount();
+    const page = pdfDoc.getPages()[0];
+    const { width, height } = page.getSize();
+    const angleRadians = (60 * Math.PI) / 180;
+ console.log('the pdf is priting single table', 0, tableInfo, tableGroup);
+    if (Object.keys(tableGroup).length == 1) {
+        
+            const page = pdfDoc.getPages()[0];
+            const { width, height } = page.getSize();
+
+           
+            console.log('page number', i, 'numPages', numPages, 'tableGroup', Object.keys(tableGroup));
+         
+                const cellWidth = tableInfo.cellWidth * Number(tableGroup.scaleX);
+                const cellHeight = tableInfo.cellHeight * Number(tableGroup.scaleY);
+                const rows = tableInfo.rows;
+                const columns = tableInfo.columns;
+                let x = tableGroup.left;
+                let y = height - (tableGroup.top + tableInfo.rows * cellHeight) - cellHeight; // Adjust y-coordinate for PDF coordinate system
+                // console.log('tableGroup',i, tableGroup[i])
+
+                let xx = 0;
+
+                // let newCordHeading = rotatePointAroundPoint(x ,y +  tableInfo.rows * cellHeight,intersect.x,intersect.y, -tableGroup.angle )
+                console.log('adding rectangles')
+                page.drawRectangle({
+                    x: x,
+                    y: y + tableInfo.rows * cellHeight,
+                    width: cellWidth * 6,
+                    height: cellHeight,
+                    borderColor: PDFLib.rgb(0, 0, 0),
+                    borderWidth: 1
+                    // rotate: PDFLib.degrees(-tableGroup.angle),
+                });
+                // newCordHeading = rotatePointAroundPoint(x + cellWidth + 10, y + tableInfo.rows * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY))),intersect.x,intersect.y, -tableGroup.angle )
+                console.log('adding texts')
+                page.drawText(currentTable, {
+                    x: x + 2 * cellWidth,
+                    y: y + tableInfo.rows * cellHeight + cellHeight - 24 * Number(tableGroup.scaleY),
+                    size: 20 * Number(tableGroup.scaleX),
+                    color: PDFLib.rgb(0, 0, 0)
+                    // rotate: PDFLib.degrees(-tableGroup.angle),
+                });
+
+                // x  = x + 5 * cellHeight;
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < columns; col++) {
+                        // let newCord = rotatePointAroundPoint(x + col * cellWidth,(y + row * cellHeight),intersect.x,intersect.y, -tableGroup.angle )
+                        page.drawRectangle({
+                            x: x + col * (col === 0 ? cellWidth : cellWidth * 2),
+                            y: y + row * cellHeight,
+                            width: col === 0 ? cellWidth * 2 : cellWidth * 4,
+                            height: cellHeight,
+                            borderColor: PDFLib.rgb(0, 0, 0),
+                            borderWidth: 1
+                            // rotate: PDFLib.degrees(-tableGroup.angle),
+                        });
+                        // newCord = rotatePointAroundPoint(x + col * cellWidth + 10,(y + row * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY)))),intersect.x,intersect.y, -tableGroup.angle )
+                        page.drawText(multipleTables[currentTable][xx], {
+                            x: x + col * cellWidth + 8,
+                            y: y + row * cellHeight + cellHeight - 24 * Number(tableGroup[i].scaleY), // Adjust text position
+                            size: 14 * Math.max(Number(tableGroup.scaleX), Number(tableGroup.scaleY)),
+                            color: PDFLib.rgb(0, 0, 0)
+                        });
+                        xx++;
+                    }
+                
+            }
+
+            // Convert fabric canvas to high-resolution image
+            const fabricDataUrl = fabricCanvas.toDataURL({
+                format: 'png',
+                quality: 1 // Max quality
+            });
+            const pngImage = await pdfDoc.embedPng(fabricDataUrl);
+        
+    }
+
+    const pdfBytesEdited = await pdfDoc.save();
+      const pdfUrl = URL.createObjectURL(new Blob([pdfBytesEdited], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = 'edited.pdf';
+    link.click();
 }
+
   return (
     <div>
           <div style={{ marginBottom: "10px" }}>
           <Button
         onClick={addRectangle}
         variant="contained"
-      >
+            >
         Add Rectangle
+      </Button>
+      <Button
+        onClick={addTable}
+        variant="contained"
+            >
+        Add Table
       </Button>
       <Button
           onClick={deleteSelectedObject}
           variant="contained"
- 
         >
           Delete Selected
         </Button>
          <Button
+         onClick={exportToPDF}
         variant="contained"
         >
           Export to PDF
