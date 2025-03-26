@@ -238,6 +238,10 @@ function findLongestInArray(arr) {
     renderPdf();
   }, [pdfDocument]);
 
+  const tableData = [
+    "Signed by OPTIMUS", " ",
+    "Signed by AUTOBOT", " "
+];
 
 const addTable = () => {
     if (!fabricInstanceRef.current) return;
@@ -245,11 +249,7 @@ const addTable = () => {
     const fabricCanvas = fabricInstanceRef.current;
 
     // Sample table data
-    const tableData = [
-        "Signed by OPTIMUS", " ",
-        "Signed by AUTOBOT", " "
-    ];
-
+  
     // Table properties
     const tableInfo = {
         x: 100,  // X position
@@ -307,7 +307,9 @@ const addTable = () => {
 };
  
 const exportToPDF = async()=>{
+    if (!fabricInstanceRef.current) return;
 
+    const fabricCanvas = fabricInstanceRef.current;
      // Should start with "%PDF"
     const savedPDFbytes = base64ToUint8Array(pdfBytes)
     // console.log('pdf bytes',savedPDFbytes);
@@ -317,13 +319,11 @@ const exportToPDF = async()=>{
     const { width, height } = page.getSize();
     const angleRadians = (60 * Math.PI) / 180;
  console.log('the pdf is priting single table', 0, tableInfo, tableGroup);
-    if (Object.keys(tableGroup).length == 1) {
+    // if (Object.keys(tableGroup).length == 1) {
         
-            const page = pdfDoc.getPages()[0];
-            const { width, height } = page.getSize();
 
            
-            console.log('page number', i, 'numPages', numPages, 'tableGroup', Object.keys(tableGroup));
+            console.log('page number', 0, 'numPages', numPages, 'tableGroup', Object.keys(tableGroup));
          
                 const cellWidth = tableInfo.cellWidth * Number(tableGroup.scaleX);
                 const cellHeight = tableInfo.cellHeight * Number(tableGroup.scaleY);
@@ -348,7 +348,7 @@ const exportToPDF = async()=>{
                 });
                 // newCordHeading = rotatePointAroundPoint(x + cellWidth + 10, y + tableInfo.rows * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY))),intersect.x,intersect.y, -tableGroup.angle )
                 console.log('adding texts')
-                page.drawText(currentTable, {
+                page.drawText("NEW SIGN TABLE", {
                     x: x + 2 * cellWidth,
                     y: y + tableInfo.rows * cellHeight + cellHeight - 24 * Number(tableGroup.scaleY),
                     size: 20 * Number(tableGroup.scaleX),
@@ -370,9 +370,9 @@ const exportToPDF = async()=>{
                             // rotate: PDFLib.degrees(-tableGroup.angle),
                         });
                         // newCord = rotatePointAroundPoint(x + col * cellWidth + 10,(y + row * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY)))),intersect.x,intersect.y, -tableGroup.angle )
-                        page.drawText(multipleTables[currentTable][xx], {
+                        page.drawText(tableData[xx], {
                             x: x + col * cellWidth + 8,
-                            y: y + row * cellHeight + cellHeight - 24 * Number(tableGroup[i].scaleY), // Adjust text position
+                            y: y + row * cellHeight + cellHeight - 24 * Number(tableGroup.scaleY), // Adjust text position
                             size: 14 * Math.max(Number(tableGroup.scaleX), Number(tableGroup.scaleY)),
                             color: PDFLib.rgb(0, 0, 0)
                         });
@@ -388,7 +388,7 @@ const exportToPDF = async()=>{
             });
             const pngImage = await pdfDoc.embedPng(fabricDataUrl);
         
-    }
+    // }
 
     const pdfBytesEdited = await pdfDoc.save();
       const pdfUrl = URL.createObjectURL(new Blob([pdfBytesEdited], { type: 'application/pdf' }));
