@@ -7,9 +7,7 @@ import * as fabric from "fabric"; // v6
 import { Button } from "@mui/material";
 import axios from "axios";
 import * as  PDFLib from 'pdf-lib'
-// Set workerSrc to avoid CORS issues
 pdfjs.GlobalWorkerOptions.workerSrc = `cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-
 export default function PDFWithFabric() {
   const pdfCanvasRef = useRef(null); // PDF canvas
   const fabricCanvasRef = useRef(null); // Fabric.js canvas
@@ -21,16 +19,6 @@ export default function PDFWithFabric() {
 const [pdfBytes,setPDFBytes] = useState() 
 const [tableGroup, setTableGroup] = useState()
 const [tableInfo, setTableInfo] = useState()
-  // Load PDF document
-//   const loadPdfFromUrl = async () => {
-//     try {
-//       const loadingTask = pdfjs.getDocument(pdfUrl);
-//       const pdf = await loadingTask.promise;
-//       setPdfDocument(pdf);
-//     } catch (error) {
-//       console.error("Error loading PDF:", error);
-//     }
-//   };
 function uint8ArrayToBase64(uint8Array) {
     let binary = "";
     uint8Array.forEach(byte => {
@@ -88,8 +76,6 @@ function base64ToUint8Array(base64) {
       
       }
 };
-
-  // Render PDF page
   const renderPdf = () => {
     if (!pdfDocument || !pdfCanvasRef.current) return;
 
@@ -129,7 +115,6 @@ function base64ToUint8Array(base64) {
     fabricCanvas.add(rect);
     fabricCanvas.renderAll();
   };
-
   const deleteSelectedObject = () => {
     if (!fabricInstanceRef.current) return;
 
@@ -150,10 +135,7 @@ function base64ToUint8Array(base64) {
       selection: true,
     });
 
-    // Store Fabric.js instance
     fabricInstanceRef.current = fabricCanvas;
-
-    // Add event listener for Delete key
     const handleKeyDown = (event) => {
       if (event.key === "Delete") {
         deleteSelectedObject();
@@ -167,23 +149,7 @@ function base64ToUint8Array(base64) {
       fabricCanvas.dispose();
     };
   }, []);
-  // Initialize Fabric.js overlay
-//   useEffect(() => {
-//     if (!fabricCanvasRef.current) return;
-
-//     const fabricCanvas = new fabric.Canvas(fabricCanvasRef.current, {
-//       backgroundColor: "transparent",
-//       selection: true, // Allow object selection
-//     });
-
-//     // Store Fabric.js instance
-//     fabricInstanceRef.current = fabricCanvas;
-
-//     return () => fabricCanvas.dispose();
-//   }, []);
-
-  // Resize Fabric.js when PDF size updates
-  const transformData = (data) => {
+const transformData = (data) => {
     return data.flatMap((character) => [character, '']);
 };
 function findLongestInArray(arr) {
@@ -196,40 +162,6 @@ function findLongestInArray(arr) {
       fabricInstanceRef.current.renderAll();
     }
   }, [canvasSize]);
-
-  // Add shapes on PDF (Ensure they align correctly)
-//   useEffect(() => {
-//     if (!fabricInstanceRef.current) return;
-
-//     const fabricCanvas = fabricInstanceRef.current;
-
-//     // Remove existing objects before adding new ones
-//     fabricCanvas.clear();
-
-//     // Create a red rectangle
-//     const rect = new fabric.Rect({
-//       left: 50,
-//       top: 50,
-//       width: 100,
-//       height: 100,
-//       fill: "red",
-//       opacity: 0.5, // Semi-transparent
-//     });
-
-//     // Create a white circle
-//     const circle = new fabric.Circle({
-//       left: 200,
-//       top: 100,
-//       radius: 50,
-//       fill: "white",
-//       opacity: 0.5,
-//     });
-
-//     fabricCanvas.add(rect, circle);
-//     fabricCanvas.renderAll();
-//   }, [canvasSize]); // Run whenever PDF resizes
-
-  // Load PDF on mount
   useEffect(() => {
     loadPdfFromUrl();
   }, []);
@@ -245,28 +177,44 @@ function findLongestInArray(arr) {
 
 const addTable = () => {
     if (!fabricInstanceRef.current) return;
-
+ 
     const fabricCanvas = fabricInstanceRef.current;
-
-    // Sample table data
-  
-    // Table properties
     const tableInfo = {
-        x: 100,  // X position
-        y: 100,  // Y position
+        x: 100,
+        y: 100,
         rows: 2,
         columns: 2,
         cellWidth: 150,
         cellHeight: 50
     };
-
     let index = 0;
     const objects = [];
+    const signRect = new fabric.Rect({
+        left: tableInfo.cellWidth - 150,
+        top: (tableInfo.cellHeight - 100),
+        fill: 'white',
+        stroke: 'black',
+        width: tableInfo.cellWidth * 2,
+        height: tableInfo.cellHeight,
+        lockRotation: true,
+        rotatable: false
+    });
 
-    // Generate table cells and text
+    const signCellText = new fabric.Text("NEW SIGN TABLE", {
+        left: tableInfo.cellWidth - 100,
+        top: (tableInfo.cellHeight + 10 - 100),
+        fontSize: 24,
+        fill: 'black',
+        originX: 'left',
+        originY: 'top',
+        lockRotation: true,
+        rotatable: false
+    });
+    
+
+   objects.push(signRect,signCellText)
     for (let i = 0; i < tableInfo.rows; i++) {
         for (let j = 0; j < tableInfo.columns; j++) {
-            // Create table cell (rectangle)
             const rect = new fabric.Rect({
                 left: j * tableInfo.cellWidth,
                 top: i * tableInfo.cellHeight,
@@ -277,8 +225,6 @@ const addTable = () => {
                 strokeWidth: 2,
                 selectable: false
             });
-
-            // Create text inside the cell
             const cellText = new fabric.Text(tableData[index], {
                 left: j * tableInfo.cellWidth + 10, // Padding inside cell
                 top: i * tableInfo.cellHeight + 15,
@@ -286,14 +232,10 @@ const addTable = () => {
                 fill: "black",
                 selectable: false
             });
-
-            // Store objects for grouping
             objects.push(rect, cellText);
             index++;
         }
     }
-
-    // Create a group with all table elements
     const tableGroup = new fabric.Group(objects, {
         left: tableInfo.x,
         top: tableInfo.y,
@@ -301,28 +243,21 @@ const addTable = () => {
     });
     setTableGroup(tableGroup)
     setTableInfo(tableInfo)
-    // Add the table group to the canvas
+
     fabricCanvas.add(tableGroup);
     fabricCanvas.renderAll();
 };
  
 const exportToPDF = async()=>{
     if (!fabricInstanceRef.current) return;
-
     const fabricCanvas = fabricInstanceRef.current;
-     // Should start with "%PDF"
     const savedPDFbytes = base64ToUint8Array(pdfBytes)
-    // console.log('pdf bytes',savedPDFbytes);
     const pdfDoc = await PDFLib.PDFDocument.load(savedPDFbytes);
     const numPages = pdfDoc.getPageCount();
     const page = pdfDoc.getPages()[0];
     const { width, height } = page.getSize();
     const angleRadians = (60 * Math.PI) / 180;
  console.log('the pdf is priting single table', 0, tableInfo, tableGroup);
-    // if (Object.keys(tableGroup).length == 1) {
-        
-
-           
             console.log('page number', 0, 'numPages', numPages, 'tableGroup', Object.keys(tableGroup));
          
                 const cellWidth = tableInfo.cellWidth * Number(tableGroup.scaleX);
@@ -330,12 +265,8 @@ const exportToPDF = async()=>{
                 const rows = tableInfo.rows;
                 const columns = tableInfo.columns;
                 let x = tableGroup.left;
-                let y = height - (tableGroup.top + tableInfo.rows * cellHeight) - cellHeight; // Adjust y-coordinate for PDF coordinate system
-                // console.log('tableGroup',i, tableGroup[i])
-
+                let y = height - (tableGroup.top + tableInfo.rows * cellHeight) - cellHeight;
                 let xx = 0;
-
-                // let newCordHeading = rotatePointAroundPoint(x ,y +  tableInfo.rows * cellHeight,intersect.x,intersect.y, -tableGroup.angle )
                 console.log('adding rectangles')
                 page.drawRectangle({
                     x: x,
@@ -346,7 +277,6 @@ const exportToPDF = async()=>{
                     borderWidth: 1
                     // rotate: PDFLib.degrees(-tableGroup.angle),
                 });
-                // newCordHeading = rotatePointAroundPoint(x + cellWidth + 10, y + tableInfo.rows * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY))),intersect.x,intersect.y, -tableGroup.angle )
                 console.log('adding texts')
                 page.drawText("NEW SIGN TABLE", {
                     x: x + 2 * cellWidth,
@@ -355,11 +285,8 @@ const exportToPDF = async()=>{
                     color: PDFLib.rgb(0, 0, 0)
                     // rotate: PDFLib.degrees(-tableGroup.angle),
                 });
-
-                // x  = x + 5 * cellHeight;
                 for (let row = 0; row < rows; row++) {
                     for (let col = 0; col < columns; col++) {
-                        // let newCord = rotatePointAroundPoint(x + col * cellWidth,(y + row * cellHeight),intersect.x,intersect.y, -tableGroup.angle )
                         page.drawRectangle({
                             x: x + col * (col === 0 ? cellWidth : cellWidth * 2),
                             y: y + row * cellHeight,
@@ -367,9 +294,7 @@ const exportToPDF = async()=>{
                             height: cellHeight,
                             borderColor: PDFLib.rgb(0, 0, 0),
                             borderWidth: 1
-                            // rotate: PDFLib.degrees(-tableGroup.angle),
                         });
-                        // newCord = rotatePointAroundPoint(x + col * cellWidth + 10,(y + row * cellHeight + cellHeight - ( 24 * (Number(tableGroup.scaleY)))),intersect.x,intersect.y, -tableGroup.angle )
                         page.drawText(tableData[xx], {
                             x: x + col * cellWidth + 8,
                             y: y + row * cellHeight + cellHeight - 24 * Number(tableGroup.scaleY), // Adjust text position
@@ -380,16 +305,13 @@ const exportToPDF = async()=>{
                     }
                 
             }
-
-            // Convert fabric canvas to high-resolution image
             const fabricDataUrl = fabricCanvas.toDataURL({
                 format: 'png',
-                quality: 1 // Max quality
+                quality: 1 
             });
             const pngImage = await pdfDoc.embedPng(fabricDataUrl);
         
     // }
-
     const pdfBytesEdited = await pdfDoc.save();
       const pdfUrl = URL.createObjectURL(new Blob([pdfBytesEdited], { type: 'application/pdf' }));
     const link = document.createElement('a');
@@ -431,27 +353,25 @@ const exportToPDF = async()=>{
         position: "relative",
         width: canvasSize.width,
         height: canvasSize.height,
-        overflow: "auto", // Enable scrolling
+        overflow: "auto",
       }}
     >
-      {/* Wrapper div for PDF canvas with transparency */}
       <div
         style={{
           position: "absolute",
           width: "100%",
           height: "100%",
-          mixBlendMode: "multiply", // Makes PDF canvas blend correctly
+          mixBlendMode: "multiply",
         }}
       >
-        {/* PDF Canvas */}
         <canvas
           ref={pdfCanvasRef}
           id="pdfViewer"
           style={{
             width: "100%",
             height: "100%",
-            backgroundColor: "transparent", // Make sure PDF background is invisible
-            zIndex: 0, // Keep PDF behind Fabric.js
+            backgroundColor: "transparent", 
+            zIndex: 0,
           }}
         />
       </div>
@@ -463,7 +383,7 @@ const exportToPDF = async()=>{
           left: 0,
           width: "100%",
           height: "100%",
-          zIndex: 2, // Ensure it's above the PDF
+          zIndex: 2,
         }}
       />
     </div>
